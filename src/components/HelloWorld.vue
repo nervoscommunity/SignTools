@@ -1,58 +1,94 @@
+
 <template>
-  <div class="hello">
-    <h1>{{ msg }}</h1>
-    <p>
-      For a guide and recipes on how to configure / customize this project,<br>
-      check out the
-      <a href="https://cli.vuejs.org" target="_blank" rel="noopener">vue-cli documentation</a>.
-    </p>
-    <h3>Installed CLI Plugins</h3>
-    <ul>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-babel" target="_blank" rel="noopener">babel</a></li>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-eslint" target="_blank" rel="noopener">eslint</a></li>
-    </ul>
-    <h3>Essential Links</h3>
-    <ul>
-      <li><a href="https://vuejs.org" target="_blank" rel="noopener">Core Docs</a></li>
-      <li><a href="https://forum.vuejs.org" target="_blank" rel="noopener">Forum</a></li>
-      <li><a href="https://chat.vuejs.org" target="_blank" rel="noopener">Community Chat</a></li>
-      <li><a href="https://twitter.com/vuejs" target="_blank" rel="noopener">Twitter</a></li>
-      <li><a href="https://news.vuejs.org" target="_blank" rel="noopener">News</a></li>
-    </ul>
-    <h3>Ecosystem</h3>
-    <ul>
-      <li><a href="https://router.vuejs.org" target="_blank" rel="noopener">vue-router</a></li>
-      <li><a href="https://vuex.vuejs.org" target="_blank" rel="noopener">vuex</a></li>
-      <li><a href="https://github.com/vuejs/vue-devtools#vue-devtools" target="_blank" rel="noopener">vue-devtools</a></li>
-      <li><a href="https://vue-loader.vuejs.org" target="_blank" rel="noopener">vue-loader</a></li>
-      <li><a href="https://github.com/vuejs/awesome-vue" target="_blank" rel="noopener">awesome-vue</a></li>
-    </ul>
-  </div>
+  <el-container>
+    <el-main>
+      <img src="../assets/NC-logo-words.png" style='width:40%;'>
+      <p>Nervos签名生成工具</p>
+      <div style="margin-top: 20px">
+        <el-input
+          type="textarea"
+          :rows="2"
+          placeholder="请输入你要签名的信息"
+          v-model="msg">
+        </el-input>
+      </div>
+      <div style="margin-top: 20px">
+        <el-input v-model="privatekey" placeholder="请输入私钥"  show-password></el-input>
+      </div>
+      <div style="margin-top: 20px">
+          <el-button type="success" id="button" @click='sign(privatekey,msg)' round>签名</el-button>
+      </div>
+      <div v-if='signedmsg' style="margin-top: 25px">
+        <p>签名信息:</p>
+        <el-input type="textarea"
+          :rows="2"
+          v-model="signedmsg" 
+          :disabled="true">
+        </el-input>
+        <p>请妥善保管您的私钥，NervosCommunity不会以任何形式索要您的私钥。</p>
+      </div>
+    </el-main>
+  </el-container>
 </template>
 
 <script>
+/* eslint-disable */
 export default {
-  name: 'HelloWorld',
-  props: {
-    msg: String
+  data(){
+    return {
+      privatekey:'',
+      msg:'',
+      signedmsg:'',
+    }
+  },
+  methods: {
+    sign:function(privatekey,usermsg){
+      if(!privatekey&&!usermsg){
+        this.$message({
+          type: 'warning',
+          message: '请输入私钥和签名'
+        });
+        return
+      }
+      let elliptic = require('elliptic');
+      let sha3 = require('js-sha3');
+      let ec = new elliptic.ec('secp256k1');
+
+      // let keyPair = ec.genKeyPair();
+      let keyPair = ec.keyFromPrivate(privatekey);
+      let privKey = keyPair.getPrivate("hex");
+      let pubKey = keyPair.getPublic();
+      // console.log(`Private key: ${privKey}`);
+      // console.log("Public key :", pubKey.encode("hex").substr(2));
+      // console.log("Public key (compressed):",
+      pubKey.encodeCompressed("hex");
+      console.log();
+      let msgHash = sha3.keccak256(usermsg);
+      let signature = ec.sign(msgHash, privKey, "hex", {canonical: true});
+      // console.log(`Msg: ${usermsg}`);
+      // console.log(`Msg hash: ${msgHash}`);
+      // console.log("Signature:", signature);
+      this.signedmsg = msgHash;
+
+      this.$message({
+          type: 'info',
+          message: '签名成功'
+        });
+      let hexToDecimal = (x) => ec.keyFromPrivate(x, "hex").getPrivate().toString(10);
+      let pubKeyRecovered = ec.recoverPubKey(
+          hexToDecimal(msgHash), signature, signature.recoveryParam, "hex");
+      // console.log("Recovered pubKey:", pubKeyRecovered.encodeCompressed("hex"));
+      let validSig = ec.verify(msgHash, signature, pubKeyRecovered);
+      // console.log("Signature valid?", validSig);
+    }
   }
 }
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
-h3 {
-  margin: 40px 0 0;
+#button{
+  width: 20%;
 }
-ul {
-  list-style-type: none;
-  padding: 0;
-}
-li {
-  display: inline-block;
-  margin: 0 10px;
-}
-a {
-  color: #42b983;
-}
+
 </style>
